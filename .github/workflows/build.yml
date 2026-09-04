@@ -28,25 +28,30 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # إضافة إعدادات Gradle الرسمية لاستخدامها كبديل
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Find and Build APK
         run: |
-          # 1. البحث التلقائي عن مسار gradlew
-          GRADLEW_PATH=$(find ./extracted -name "gradlew" | head -n 1)
+          # 1. البحث عن أقصر مسار يحتوي على ملف settings.gradle أو build.gradle (والذي يمثل الجذر الأساسي للمشروع)
+          PROJECT_ROOT=$(find ./extracted -name "settings.gradle" | head -n 1)
           
-          if [ -z "$GRADLEW_PATH" ]; then
-            echo "Error: gradlew not found in the zip file!"
+          if [ -z "$PROJECT_ROOT" ]; then
+            PROJECT_ROOT=$(find ./extracted -name "build.gradle" | awk '{ print length, $0 }' | sort -n | cut -d" " -f2- | head -n 1)
+          fi
+          
+          if [ -z "$PROJECT_ROOT" ]; then
+            echo "Error: Could not find build.gradle or settings.gradle! This might not be a valid Android project."
             exit 1
           fi
           
-          echo "Found gradlew at: $GRADLEW_PATH"
-          
-          # 2. الدخول إلى المجلد الصحيح الذي يحتوي على الملف
-          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+          PROJECT_DIR=$(dirname "$PROJECT_ROOT")
+          echo "Found Android project root at: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
-          # 3. إعطاء الصلاحيات وبناء التطبيق
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          # 2. استخدام أداة gradle العامة في السيرفر بدلاً من gradlew المحلي
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
