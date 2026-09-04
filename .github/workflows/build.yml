@@ -22,40 +22,53 @@ jobs:
       - name: Unzip Project Files
         run: unzip -q classwiz-android-project.zip -d extracted
 
-      - name: Set up JDK 17
+      - name: Set up JDK 11
         uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: '11'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Find Project Root
+      - name: Check Gradle Version
         run: |
-          # البحث عن جذر المشروع
-          PROJECT_ROOT=$(find ./extracted -name "settings.gradle" -type f | head -n 1)
-          
-          if [ -z "$PROJECT_ROOT" ]; then
-            PROJECT_ROOT=$(find ./extracted -name "build.gradle" -type f | head -n 1)
+          cd extracted
+          if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            cat gradle/wrapper/gradle-wrapper.properties
           fi
-          
-          if [ -z "$PROJECT_ROOT" ]; then
-            echo "Error: لم يتم العثور على settings.gradle أو build.gradle!"
-            exit 1
+          ls -la gradle/wrapper/ 2>/dev/null || echo "No gradle wrapper directory found"
+
+      - name: Create Gradle Wrapper with Version 7.5.1
+        run: |
+          cd extracted
+          # تحميل أداة gradle wrapper
+          if [ ! -f "gradlew" ]; then
+            echo "Creating gradle wrapper..."
+            # تحديد إصدار gradle 7.5.1 (متوافق مع معظم مشاريع Android)
+            mkdir -p gradle/wrapper
+            cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-7.5.1-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+            
+            # تحميل وإنشاء gradlew
+            gradle --version || true
+            # استخدام gradle من النظام لإنشاء wrapper
+            gradle wrapper --gradle-version=7.5.1 2>/dev/null || {
+              # إذا فشل، قم بتحميل gradlew مباشرة
+              wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradlew -O gradlew
+              wget -q https://raw.githubusercontent.com/gradle/gradle/master/gradle/wrapper/gradlew.bat -O gradlew.bat
+              chmod +x gradlew
+            }
           fi
-          
-          PROJECT_DIR=$(dirname "$PROJECT_ROOT")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
-          echo "وجدت جذر المشروع في: $PROJECT_DIR"
+          chmod +x gradlew
+          ls -la gradlew
 
       - name: Build APK
         run: |
-          cd "$PROJECT_DIR"
-          echo "البناء من: $(pwd)"
-          gradle wrapper
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          cd extracted
+          ./gradlew clean assembleDebug --stacktrace --no-daemon -x lint
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -66,9 +79,11 @@ jobs:
       - name: Debug Info
         if: failure()
         run: |
-          echo "=== جذر المشروع ==="
-          echo "$PROJECT_DIR"
-          echo "=== محتويات المشروع ==="
-          ls -la "$PROJECT_DIR"
-          echo "=== البحث عن gradle files ==="
-          find ./extracted -name "*.gradle" -type f
+          echo "=== Project Structure ==="
+          find ./extracted -maxdepth 2 -type f -name "*.gradle*" -o -name "*.properties"
+          echo ""
+          echo "=== JDK Version ==="
+          java -version
+          echo ""
+          echo "=== Gradle Version ==="
+          cd extracted && ./gradlew --version 2>/dev/null || gradle --version
