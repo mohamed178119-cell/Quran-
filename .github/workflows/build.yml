@@ -28,17 +28,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
       - name: Find and Build APK
         run: |
           # البحث عن جذر المشروع الصحيح
-          PROJECT_ROOT=$(find ./extracted -name "settings.gradle" | head -n 1)
-          
-          if [ -z "$PROJECT_ROOT" ]; then
-            PROJECT_ROOT=$(find ./extracted -name "build.gradle" | awk '{ print length, $0 }' | sort -n | cut -d" " -f2- | head -n 1)
-          fi
+          PROJECT_ROOT=$(find ./extracted -name "settings.gradle" -o -name "build.gradle" | head -n 1)
           
           if [ -z "$PROJECT_ROOT" ]; then
             echo "Error: لم يتم العثور على build.gradle أو settings.gradle!"
@@ -49,12 +42,16 @@ jobs:
           echo "وجدت جذر المشروع في: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
-          # بناء APK
+          # إعطاء الصلاحيات لـ gradlew
           chmod +x gradlew 2>/dev/null || true
+          
+          # بناء APK
           if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug --stacktrace
+            echo "استخدام gradlew المحلي..."
+            ./gradlew assembleDebug --stacktrace --no-daemon
           else
-            gradle assembleDebug --stacktrace
+            echo "Error: لم يتم العثور على gradlew!"
+            exit 1
           fi
 
       - name: Upload APK Artifact
@@ -67,6 +64,8 @@ jobs:
         if: failure()
         run: |
           echo "=== البحث عن ملفات gradle ==="
-          find ./extracted -name "*.gradle" -type f
+          find ./extracted -name "*.gradle" -type f | head -20
           echo "=== محتويات extracted ==="
-          ls -la ./extracted/
+          ls -la ./extracted/ | head -20
+          echo "=== البحث عن gradlew ==="
+          find ./extracted -name "gradlew" -type f
