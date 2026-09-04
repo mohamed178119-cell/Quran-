@@ -28,13 +28,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # إضافة إعدادات Gradle الرسمية لاستخدامها كبديل
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
       - name: Find and Build APK
         run: |
-          # 1. البحث عن أقصر مسار يحتوي على ملف settings.gradle أو build.gradle (والذي يمثل الجذر الأساسي للمشروع)
+          # البحث عن جذر المشروع الصحيح
           PROJECT_ROOT=$(find ./extracted -name "settings.gradle" | head -n 1)
           
           if [ -z "$PROJECT_ROOT" ]; then
@@ -42,19 +41,32 @@ jobs:
           fi
           
           if [ -z "$PROJECT_ROOT" ]; then
-            echo "Error: Could not find build.gradle or settings.gradle! This might not be a valid Android project."
+            echo "Error: لم يتم العثور على build.gradle أو settings.gradle!"
             exit 1
           fi
           
           PROJECT_DIR=$(dirname "$PROJECT_ROOT")
-          echo "Found Android project root at: $PROJECT_DIR"
+          echo "وجدت جذر المشروع في: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
-          # 2. استخدام أداة gradle العامة في السيرفر بدلاً من gradlew المحلي
-          gradle assembleDebug --stacktrace
+          # بناء APK
+          chmod +x gradlew 2>/dev/null || true
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: extracted/**/build/outputs/apk/debug/*.apk
+
+      - name: Debug Info
+        if: failure()
+        run: |
+          echo "=== البحث عن ملفات gradle ==="
+          find ./extracted -name "*.gradle" -type f
+          echo "=== محتويات extracted ==="
+          ls -la ./extracted/
