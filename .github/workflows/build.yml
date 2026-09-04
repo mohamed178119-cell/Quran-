@@ -1,41 +1,23 @@
-name: Build Android APK
+name: Debug Repository Structure
 
 on:
   push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+      - name: Print Current Working Directory
+        run: pwd
 
-      # استبدل YOUR_SUBFOLDER_NAME باسم المجلد الذي يحتوي على مشروعك
-      - name: Grant execute permission for gradlew
-        working-directory: ./YOUR_SUBFOLDER_NAME
-        run: chmod +x gradlew
-
-      - name: Build APK with Gradle
-        working-directory: ./YOUR_SUBFOLDER_NAME
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: /**/build/outputs/apk/debug/*.apk
+      - name: List Files and Folders Structure
+        run: |
+          echo "=== Root Directory Content ==="
+          ls -la
+          echo "=== Full Directory Tree (Max Depth 3) ==="
+          find . -maxdepth 3 -not -path '*/.*'
