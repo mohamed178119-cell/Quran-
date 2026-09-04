@@ -16,30 +16,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب ملفات المستودع
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. فك ضغط ملف المشروع
+      # تم إضافة -o للفرض والكتابة فوق الملفات بدون توقف/سؤال
       - name: Unzip Project Files
-        run: unzip -q classwiz-android-project.zip -d .
+        run: unzip -o -q classwiz-android-project.zip -d .
 
-      # 3. إعداد بيئة الجافا
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 4. إعطاء صلاحية التشغيل لملف gradlew
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 5. بناء ملف الـ APK
       - name: Build APK with Gradle
         run: ./gradlew assembleDebug --stacktrace
 
-      # 6. رفع ملف الـ APK الناتج لتنزيله
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
