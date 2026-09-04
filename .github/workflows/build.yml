@@ -28,27 +28,32 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Find and Build APK
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Find Project Root
         run: |
-          # البحث عن gradlew أولاً
-          GRADLEW_FILE=$(find ./extracted -name "gradlew" -type f | head -n 1)
+          # البحث عن جذر المشروع
+          PROJECT_ROOT=$(find ./extracted -name "settings.gradle" -type f | head -n 1)
           
-          if [ -z "$GRADLEW_FILE" ]; then
-            echo "Error: لم يتم العثور على gradlew!"
-            echo "=== محتويات extracted ==="
-            find ./extracted -type f -name "*.gradle*" | head -10
-            find ./extracted -type f -name "gradlew*"
-            ls -la ./extracted/
+          if [ -z "$PROJECT_ROOT" ]; then
+            PROJECT_ROOT=$(find ./extracted -name "build.gradle" -type f | head -n 1)
+          fi
+          
+          if [ -z "$PROJECT_ROOT" ]; then
+            echo "Error: لم يتم العثور على settings.gradle أو build.gradle!"
             exit 1
           fi
           
-          # الحصول على المسار الصحيح
-          PROJECT_DIR=$(dirname "$GRADLEW_FILE")
-          echo "وجدت gradlew في: $GRADLEW_FILE"
-          echo "سيتم البناء من: $PROJECT_DIR"
+          PROJECT_DIR=$(dirname "$PROJECT_ROOT")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "وجدت جذر المشروع في: $PROJECT_DIR"
+
+      - name: Build APK
+        run: |
           cd "$PROJECT_DIR"
-          
-          # إعطاء الصلاحيات وبناء APK
+          echo "البناء من: $(pwd)"
+          gradle wrapper
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon
 
@@ -61,7 +66,9 @@ jobs:
       - name: Debug Info
         if: failure()
         run: |
-          echo "=== البحث عن جميع ملفات gradle ==="
-          find ./extracted -name "*gradle*" -type f
-          echo "=== هيكل المشروع ==="
-          find ./extracted -maxdepth 3 -type f | head -30
+          echo "=== جذر المشروع ==="
+          echo "$PROJECT_DIR"
+          echo "=== محتويات المشروع ==="
+          ls -la "$PROJECT_DIR"
+          echo "=== البحث عن gradle files ==="
+          find ./extracted -name "*.gradle" -type f
