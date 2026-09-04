@@ -19,7 +19,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # فك الضغط في مجلد منفصل اسمه extracted تجنباً للتعارض
       - name: Unzip Project Files
         run: unzip -q classwiz-android-project.zip -d extracted
 
@@ -29,21 +28,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Grant execute permission for gradlew
-        working-directory: ./extracted
-        run: chmod +x gradlew
-
-      - name: Build APK with Gradle
-        working-directory: ./extracted
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Find and Build APK
+        run: |
+          # 1. البحث التلقائي عن مسار gradlew
+          GRADLEW_PATH=$(find ./extracted -name "gradlew" | head -n 1)
+          
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "Error: gradlew not found in the zip file!"
+            exit 1
+          fi
+          
+          echo "Found gradlew at: $GRADLEW_PATH"
+          
+          # 2. الدخول إلى المجلد الصحيح الذي يحتوي على الملف
+          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
+          cd "$PROJECT_DIR"
+          
+          # 3. إعطاء الصلاحيات وبناء التطبيق
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: extracted/**/build/outputs/apk/debug/*.apk
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: /**/build/outputs/apk/debug/*.apk
