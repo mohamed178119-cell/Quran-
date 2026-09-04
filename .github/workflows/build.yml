@@ -16,22 +16,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. جلب الكود أولاً (ضروري جداً)
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 2. إعداد بيئة الجافا (تم التحديث لـ v5 وحذف cache تجنباً لخطأ المسار)
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
+      # 3. إعطاء صلاحية التشغيل لـ gradlew
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # 4. بناء الـ APK
       - name: Build APK with Gradle
         run: ./gradlew assembleDebug --stacktrace
 
+      # 5. رفع ملف الـ APK الناتج
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
